@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated from branding/moby-whale.svg.
+     A whale whose spout is an upload arrow. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- The whale, in its own coordinates, like the SVG's "whale" group. -->
+    <group
+        android:translateX="18.56"
+        android:translateY="30.38"
+        android:scaleX="0.62"
+        android:scaleY="0.62">
+        <path
+            android:fillColor="#ffffff"
+            android:pathData="m 12,58 c 0,-17 15,-27 34,-27 16,0 26,7 32,16 3,5 6,4 8,-1 L 88.16912,40.4715 93,43 C 92,53 89,60 83,64 76,69 66,71 56,71 H 30 C 19,71 12,66 12,58 Z" />
+        <path
+            android:fillColor="#ffffff"
+            android:pathData="M 87.482839,42.226808 C 88.975731,37.454199 77.638179,27.620168 68.638179,26.620168 76.638179,22.620168 87,29 90.5,35 93,28 100,25 108,26 100.44032,29.779842 93.59528,34.961117 92.9356,43.541031 92.879934,44.265023 92.637599,44.504645 92.5,45 Z" />
+        <path
+            android:fillColor="#1565c0"
+            android:pathData="M24.7567,49.0A2.24331,2.24331 0,1 0,29.2433,49.0A2.24331,2.24331 0,1 0,24.7567,49.0Z" />
+        <!-- The smile, trimmed to the body's outline. -->
+        <group>
+            <clip-path android:pathData="m 12,58 c 0,-17 15,-27 34,-27 16,0 26,7 32,16 3,5 6,4 8,-1 L 88.16912,40.4715 93,43 C 92,53 89,60 83,64 76,69 66,71 56,71 H 30 C 19,71 12,66 12,58 Z" />
+            <path
+                android:strokeColor="#1565c0"
+                android:strokeWidth="2.02159778"
+                android:strokeLineCap="round"
+                android:pathData="M 11.254659,58.797433 C 14.854659,61.797433 20.5,63 25.5,61" />
+        </group>
+    </group>
+    <!-- The spout: an upload arrow. -->
+    <path
+        android:strokeColor="#ffffff"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 43.36,46.708738 43.36,30.5 m -5.5,5.5 5.5,-5.5 5.5,5.5" />
+    <!-- Water drops beside the spout. -->
+    <path
+        android:fillColor="#ffffff"
+        android:pathData="M32.7163,39.546875A1.8,1.8 0,1 0,36.3163,39.546875A1.8,1.8 0,1 0,32.7163,39.546875ZM50.4038,39.546875A1.8,1.8 0,1 0,54.0038,39.546875A1.8,1.8 0,1 0,50.4038,39.546875Z" />
+</vector>

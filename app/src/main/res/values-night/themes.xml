@@ -1,0 +1,4 @@
+<resources>
+    <!-- Dark, so a light window never shows behind the app in dark mode. -->
+    <style name="Theme.Moby" parent="android:Theme.Material.NoActionBar" />
+</resources>

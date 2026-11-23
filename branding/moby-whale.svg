@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+  Moby app icon: a whale whose spout is an upload arrow.
+
+  The canvas is 108 x 108, the size of an Android adaptive icon. Launchers
+  crop it to a circle or rounded square about 72 across (18 to 90), and
+  anything important should stay within the middle 66 (21 to 87).
+-->
+
+<svg
+   viewBox="0 0 108 108"
+   width="512"
+   height="512"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="moby-whale.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1">
+    <!-- The body's outline, used to trim the smile. It follows edits to the body. -->
+    <clipPath
+       id="body-clip"
+       clipPathUnits="userSpaceOnUse">
+      <use
+         href="#body"
+         id="body-clip-shape" />
+    </clipPath>
+  </defs>
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="0.5029297"
+     inkscape:cx="1034.9359"
+     inkscape:cy="128.24854"
+     inkscape:current-layer="whale" />
+  <!-- Background -->
+  <rect
+     id="background"
+     width="108"
+     height="108"
+     fill="#1565c0"
+     x="0"
+     y="0"
+     style="display:inline" />
+  <!--
+    The whale, drawn facing left in its own 0 to 100 box. Move or resize it
+    with the transform: translate(x, y) scale(size).
+  -->
+  <g
+     id="whale"
+     transform="translate(18.56, 30.38) scale(0.62)">
+    <path
+       id="body"
+       fill="#ffffff"
+       d="m 12,58 c 0,-17 15,-27 34,-27 16,0 26,7 32,16 3,5 6,4 8,-1 L 88.16912,40.4715 93,43 C 92,53 89,60 83,64 76,69 66,71 56,71 H 30 C 19,71 12,66 12,58 Z"
+       sodipodi:nodetypes="sscscccsss" />
+    <path
+       id="tail"
+       fill="#ffffff"
+       d="M 87.482839,42.226808 C 88.975731,37.454199 77.638179,27.620168 68.638179,26.620168 76.638179,22.620168 87,29 90.5,35 93,28 100,25 108,26 100.44032,29.779842 93.59528,34.961117 92.9356,43.541031 92.879934,44.265023 92.637599,44.504645 92.5,45 Z"
+       sodipodi:nodetypes="ccccscc" />
+    <circle
+       id="eye"
+       cx="27"
+       cy="49"
+       r="2.2433131"
+       fill="#1565c0"
+       style="stroke-width:0.701035" />
+    <path
+       id="smile"
+       fill="none"
+       stroke="#1565c0"
+       stroke-width="2.6"
+       stroke-linecap="round"
+       clip-path="url(#body-clip)"
+       d="M 11.254659,58.797433 C 14.854659,61.797433 20.5,63 25.5,61"
+       sodipodi:nodetypes="cc"
+       style="stroke-width:2.02159778;stroke-dasharray:none" />
+  </g>
+  <!--
+    The spout. The first part of the path is the arrow's line (from y 47.6 up
+    to y 30.5); the rest is the arrowhead.
+  -->
+  <path
+     id="arrow"
+     fill="none"
+     stroke="#ffffff"
+     stroke-width="3.2"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     d="M 43.36,46.708738 43.36,30.5 m -5.5,5.5 5.5,-5.5 5.5,5.5"
+     sodipodi:nodetypes="ccccc" />
+  <!-- Water drops beside the spout -->
+  <circle
+     id="drop-left"
+     cx="34.516251"
+     cy="39.546875"
+     r="1.8"
+     fill="#ffffff" />
+  <circle
+     id="drop-right"
+     cx="52.203751"
+     cy="39.546875"
+     r="1.8"
+     fill="#ffffff" />
+</svg>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated from branding/moby-whale.svg.
+     The icon in one color, for launchers that theme icons (Android 13 and
+     later). The eye and smile are cut out of the body. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="18.56"
+        android:translateY="30.38"
+        android:scaleX="0.62"
+        android:scaleY="0.62">
+        <path
+            android:fillType="evenOdd"
+            android:fillColor="#FF000000"
+            android:pathData="M 46 31 C 27 31 12 41 12 58 C 12 58.034132 11.999745 58.067539 12 58.101562 C 15.308839 60.795243 20.54383 61.893015 25.125 60.060547 A 1.0107989 1.0107989 0 0 1 26.439453 60.625 A 1.0107989 1.0107989 0 0 1 25.875 61.939453 C 21.231935 63.796679 16.123912 63.103319 12.306641 60.785156 C 13.764557 67.143565 20.339244 71 30 71 L 56 71 C 66 71 76 69 83 64 C 89 60 92 53 93 43 L 88.169922 40.470703 L 86 46 C 84 51 81 52 78 47 C 72 38 62 31 46 31 z M 27 46.755859 A 2.2433131 2.2433131 0 0 1 29.244141 49 A 2.2433131 2.2433131 0 0 1 27 51.244141 A 2.2433131 2.2433131 0 0 1 24.755859 49 A 2.2433131 2.2433131 0 0 1 27 46.755859 z" />
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M 87.482839,42.226808 C 88.975731,37.454199 77.638179,27.620168 68.638179,26.620168 76.638179,22.620168 87,29 90.5,35 93,28 100,25 108,26 100.44032,29.779842 93.59528,34.961117 92.9356,43.541031 92.879934,44.265023 92.637599,44.504645 92.5,45 Z" />
+    </group>
+    <!-- The spout: an upload arrow. -->
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 43.36,46.708738 43.36,30.5 m -5.5,5.5 5.5,-5.5 5.5,5.5" />
+    <!-- Water drops beside the spout. -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M32.7163,39.546875A1.8,1.8 0,1 0,36.3163,39.546875A1.8,1.8 0,1 0,32.7163,39.546875ZM50.4038,39.546875A1.8,1.8 0,1 0,54.0038,39.546875A1.8,1.8 0,1 0,50.4038,39.546875Z" />
+</vector>
