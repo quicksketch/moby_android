@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.sp
 /**
  * The top bar, laid out as in the iOS app: a bold, centered title, and a back
  * button with an arrow and the name of the screen it returns to, such as
- * "← Sites". See specifications.md section 14.
+ * "← Sites". See SPECIFICATIONS.md section 14.
  *
  * @param backLabel The screen the back button returns to, or null for none.
  */

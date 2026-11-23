@@ -2,7 +2,7 @@ package org.mobyapp.android.data
 
 /**
  * The API version this app is built for, and what it does on sites with an
- * older one. See "Versioning" in moby_docs/API.md and specifications.md.
+ * older one. See "Versioning" in moby_docs/API.md and SPECIFICATIONS.md.
  *
  * Every API change bumps the version. When the app starts using a change,
  * raise [CURRENT] to its version and add it to [CHANGES], with a label if

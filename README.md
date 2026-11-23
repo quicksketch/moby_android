@@ -1,13 +1,14 @@
 # Moby for Android
 
-An Android app for posting to a Backdrop CMS site that runs the Moby (`moby`)
-module. You can log in, create posts with a description, date,
+An Android app for posting to a Backdrop CMS site that runs the
+[Moby (`moby`) module](https://github.com/backdrop-contrib/moby). You can log in, create posts with a description, date,
 location, and photos and videos, browse recent posts, and edit them.
 
-The app talks only to the moby REST API. See `../moby_docs/API.md` for the
-full API.
+The app talks only to the moby REST API. See
+[API.md](https://github.com/quicksketch/moby_docs/blob/main/API.md) in
+[moby_docs](https://github.com/quicksketch/moby_docs) for the full API.
 
-`../moby_docs/specifications.md` describes everything the app does. It is the
+[SPECIFICATIONS.md](https://github.com/quicksketch/moby_docs/blob/main/SPECIFICATIONS.md) describes everything the app does. It is the
 specification both the Android and iOS apps follow, so they stay
 feature-equivalent.
 

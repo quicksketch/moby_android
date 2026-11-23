@@ -27,7 +27,7 @@ class UploadSource(
 class ThumbnailImage(val filename: String, val mimeType: String, val bytes: ByteArray)
 
 /**
- * Timeouts for the app's requests. See specifications.md section 2.
+ * Timeouts for the app's requests. See SPECIFICATIONS.md section 2.
  *
  * Android's HttpURLConnection has no write timeout; the read timeout limits
  * how long the site may take to answer once an upload is sent.

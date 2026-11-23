@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 
 /*
  * The app's colors, shared with the iOS app so both look alike. See
- * specifications.md section 15.
+ * SPECIFICATIONS.md section 15.
  *
  * - Actions, links and icons are very light gray in dark mode and dark gray in
  *   light mode. They are the color scheme's primary color, so text buttons,
