@@ -82,6 +82,38 @@ export JAVA_HOME=/snap/android-studio/current/jbr   # or your Android Studio's j
 
 The first build downloads Gradle and the dependencies.
 
+## Releasing
+
+Publishing a release on GitHub runs `.github/workflows/release.yml`. It runs
+the unit tests, builds a signed app bundle (`.aab`, for Google Play) and APK,
+checks both signatures, and attaches them to the release as
+`moby-android-{version}.aab` and `.apk`.
+
+- **Tag:** the release's tag sets the version and must look like `v1.2.3`.
+  The version code is major × 1,000,000 + minor × 1,000 + patch, so each
+  release's is higher than the last, as Google Play requires.
+- **Signing:** both are signed with the upload key. Google Play re-signs the
+  bundle with the app signing key it holds, so the APK can't update an
+  install from Google Play, or the reverse.
+- **Secrets** (Settings → Secrets and variables → Actions):
+
+  | Secret | Value |
+  |---|---|
+  | `ANDROID_UPLOAD_KEYSTORE_BASE64` | The keystore, from `base64 -w0 moby-upload.jks` |
+  | `ANDROID_UPLOAD_KEYSTORE_PASSWORD` | Its password |
+  | `ANDROID_UPLOAD_KEY_ALIAS` | The key's alias, such as `upload` |
+
+To sign release builds locally, create an uncommitted `keystore.properties`:
+
+```
+storeFile=/path/to/moby-upload.jks
+storePassword=...
+keyAlias=upload
+```
+
+Then `./gradlew bundleRelease assembleRelease`. Without it, release builds
+are unsigned. Keystores and `keystore.properties` are in `.gitignore`.
+
 ## Testing against a local DDEV site
 
 The emulator can't resolve `*.ddev.site` to your computer, so forward the

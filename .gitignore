@@ -7,3 +7,8 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+
+# Signing keys and their passwords. Never commit these.
+*.jks
+*.keystore
+keystore.properties

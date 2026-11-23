@@ -1,7 +1,21 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+// Release signing, from environment variables (the release workflow) or an
+// uncommitted keystore.properties file (local builds). Without either, release
+// builds are unsigned. See "Releasing" in README.md.
+val keystoreProperties = Properties().apply {
+    rootProject.file("keystore.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
+}
+
+fun signingValue(env: String, property: String): String? =
+    System.getenv(env)?.takeIf { it.isNotEmpty() } ?: keystoreProperties.getProperty(property)
+
+val releaseKeystore = signingValue("MOBY_KEYSTORE_FILE", "storeFile")
 
 android {
     namespace = "org.mobyapp.android"
@@ -11,12 +25,27 @@ android {
         applicationId = "org.mobyapp.android"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        // The release workflow sets these from the release's tag.
+        versionCode = providers.gradleProperty("mobyVersionCode").orNull?.toInt() ?: 1
+        versionName = providers.gradleProperty("mobyVersionName").orNull ?: "0.1.0"
+    }
+
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = rootProject.file(releaseKeystore)
+                storePassword = signingValue("MOBY_KEYSTORE_PASSWORD", "storePassword")
+                keyAlias = signingValue("MOBY_KEY_ALIAS", "keyAlias")
+                // PKCS12 keystores, keytool's default, use one password for
+                // the keystore and its key.
+                keyPassword = signingValue("MOBY_KEY_PASSWORD", "keyPassword") ?: storePassword
+            }
+        }
     }
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

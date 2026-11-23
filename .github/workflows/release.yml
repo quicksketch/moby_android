@@ -1,0 +1,99 @@
+# Builds a signed app bundle (for Google Play) and APK when a GitHub release
+# is published, and attaches both to the release.
+#
+# The release's tag sets the version, and must look like v1.2.3 or 1.2.3.
+# The version code is major × 1,000,000 + minor × 1,000 + patch, so it rises
+# with every release, as Google Play requires.
+#
+# Repository secrets (Settings → Secrets and variables → Actions):
+#   ANDROID_UPLOAD_KEYSTORE_BASE64  The upload keystore: base64 -w0 moby-upload.jks
+#   ANDROID_UPLOAD_KEYSTORE_PASSWORD  Its password
+#   ANDROID_UPLOAD_KEY_ALIAS  The key's alias, such as "upload"
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Work out the version from the tag
+        id: version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::error::The release tag \"$TAG\" must look like v1.2.3."
+            exit 1
+          fi
+          major=${BASH_REMATCH[1]} minor=${BASH_REMATCH[2]} patch=${BASH_REMATCH[3]}
+          if (( minor > 999 || patch > 999 )); then
+            echo "::error::Minor and patch versions must be below 1000."
+            exit 1
+          fi
+          echo "name=$major.$minor.$patch" >> "$GITHUB_OUTPUT"
+          echo "code=$(( major * 1000000 + minor * 1000 + patch ))" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the upload key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+        run: |
+          if [[ -z "$KEYSTORE_BASE64" || -z "$KEYSTORE_PASSWORD" || -z "$KEY_ALIAS" ]]; then
+            echo "::error::Set the ANDROID_UPLOAD_KEYSTORE_BASE64, ANDROID_UPLOAD_KEYSTORE_PASSWORD and ANDROID_UPLOAD_KEY_ALIAS secrets."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+
+      - name: Run the unit tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Build the signed bundle and APK
+        env:
+          MOBY_KEYSTORE_FILE: ${{ runner.temp }}/upload.jks
+          MOBY_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          MOBY_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+        run: >-
+          ./gradlew bundleRelease assembleRelease
+          -PmobyVersionCode=${{ steps.version.outputs.code }}
+          -PmobyVersionName=${{ steps.version.outputs.name }}
+
+      - name: Check the signatures
+        run: |
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner
+          "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk
+          # Not -strict: Android signing keys are self-signed, which it rejects.
+          if ! jarsigner -verify app/build/outputs/bundle/release/app-release.aab | grep -q '^jar verified'; then
+            echo "::error::The app bundle is not signed."
+            exit 1
+          fi
+
+      - name: Attach the bundle and APK to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+          VERSION: ${{ steps.version.outputs.name }}
+        run: |
+          mkdir dist
+          cp app/build/outputs/bundle/release/app-release.aab "dist/moby-android-$VERSION.aab"
+          cp app/build/outputs/apk/release/app-release.apk "dist/moby-android-$VERSION.apk"
+          gh release upload "$TAG" dist/* --clobber
+
+      - name: Delete the upload key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks"
