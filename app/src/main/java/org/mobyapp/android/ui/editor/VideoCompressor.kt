@@ -70,6 +70,19 @@ object VideoCompressor {
         }
     }
 
+    /** Whether a video has an audio track. If it can't be read, assumes it does. */
+    private suspend fun hasAudio(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(context, uri)
+            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO) != null
+        } catch (e: RuntimeException) {
+            true
+        } finally {
+            retriever.release()
+        }
+    }
+
     /**
      * Compresses a video to an H.264 and AAC MP4 in the app's cache.
      *
@@ -83,6 +96,7 @@ object VideoCompressor {
             error("There isn't enough free storage to compress this video.")
         }
         val file = File(directory, "${UUID.randomUUID()}.mp4")
+        val audio = hasAudio(context, uri)
         // Transformer must be used from the thread that created it.
         withContext(Dispatchers.Main) {
             val presentation = if (plan.scale) {
@@ -93,7 +107,14 @@ object VideoCompressor {
             val item = EditedMediaItem.Builder(MediaItem.fromUri(uri))
                 .setEffects(Effects(emptyList(), presentation))
                 .build()
-            val composition = Composition.Builder(EditedMediaItemSequence.Builder(item).build())
+            // The sequence must say which tracks it has. Videos without sound,
+            // such as screen recordings, have no audio track to declare.
+            val sequence = if (audio) {
+                EditedMediaItemSequence.withAudioAndVideoFrom(listOf(item))
+            } else {
+                EditedMediaItemSequence.withVideoFrom(listOf(item))
+            }
+            val composition = Composition.Builder(sequence)
                 // H.264 in browsers is SDR.
                 .setHdrMode(Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL)
                 .build()

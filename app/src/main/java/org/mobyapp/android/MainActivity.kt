@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.os.BundleCompat
 import org.mobyapp.android.ui.MobyNavHost
 import org.mobyapp.android.ui.SharedMedia
 import org.mobyapp.android.ui.theme.MobyTheme
@@ -28,7 +29,7 @@ class MainActivity : ComponentActivity() {
         // When restored, the editor has already been given the shared media.
         pendingShare = when {
             savedInstanceState == null -> SharedMedia.fromIntent(intent)
-            else -> savedInstanceState.getParcelableArrayList<Uri>(PENDING_SHARE).orEmpty()
+            else -> BundleCompat.getParcelableArrayList(savedInstanceState, PENDING_SHARE, Uri::class.java).orEmpty()
         }
         setContent {
             MobyTheme {
