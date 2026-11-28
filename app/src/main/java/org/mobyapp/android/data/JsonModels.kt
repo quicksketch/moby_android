@@ -22,7 +22,7 @@ internal object JsonModels {
         },
         site = site(o.getJSONObject("site")),
         setupIssues = o.list("setup_issues") { setupIssue(it) },
-        auth = o.objOrNull("auth")?.let(::authInfo),
+        authMechanisms = o.list("auth_mechanisms") { authInfo(it) },
         limits = limits(o.getJSONObject("limits")),
         media = mediaTypes(o.getJSONObject("media")),
         description = o.objOrNull("description")?.let(::descriptionInfo) ?: DescriptionInfo(),
@@ -47,6 +47,8 @@ internal object JsonModels {
         label = o.getString("label"),
         fields = o.list("fields") { authField(it) },
         passwordResetUrl = o.strOrNull("password_reset_url"),
+        description = o.strOrNull("description"),
+        submitLabel = o.strOrNull("submit_label"),
     )
 
     private fun authField(o: JSONObject) = AuthField(
@@ -54,6 +56,7 @@ internal object JsonModels {
         label = o.getString("label"),
         type = o.getString("type"),
         required = o.bool("required", true),
+        placeholder = o.strOrNull("placeholder"),
     )
 
     private fun limits(o: JSONObject) = Limits(
@@ -83,6 +86,7 @@ internal object JsonModels {
     private fun descriptionInfo(o: JSONObject) = DescriptionInfo(
         format = o.strOrNull("format"),
         html = o.bool("html", false),
+        tags = if (o.isNull("tags")) emptyList() else o.strings("tags"),
     )
 
     private fun displayInfo(o: JSONObject) = DisplayInfo(
@@ -102,6 +106,19 @@ internal object JsonModels {
         tokenType = o.getString("token_type"),
         user = user(o.getJSONObject("user")),
     )
+
+    /** A 201 token response, or a 202 login step. */
+    fun loginResult(o: JSONObject): LoginResult = o.objOrNull("step")?.let {
+        LoginResult.Step(
+            LoginStep(
+                requestId = it.getString("request_id"),
+                title = it.strOrNull("title"),
+                description = it.strOrNull("description"),
+                submitLabel = it.strOrNull("submit_label") ?: "Continue",
+                fields = it.list("fields") { field -> authField(field) },
+            ),
+        )
+    } ?: LoginResult.LoggedIn(tokenResponse(o))
 
     fun user(o: JSONObject) = User(
         id = o.getLong("id"),
@@ -166,7 +183,12 @@ internal object JsonModels {
     /** An error response's details, or null if the body isn't one. */
     fun errorDetail(body: String): ErrorDetail? = runCatching {
         val error = JSONObject(body).getJSONObject("error")
-        ErrorDetail(code = error.getString("code"), message = error.getString("message"), field = error.strOrNull("field"))
+        ErrorDetail(
+            code = error.getString("code"),
+            message = error.getString("message"),
+            field = error.strOrNull("field"),
+            restart = error.bool("restart", false),
+        )
     }.getOrNull()
 }
 

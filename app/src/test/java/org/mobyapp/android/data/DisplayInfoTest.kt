@@ -40,6 +40,7 @@ class DisplayInfoTest {
         assertEquals(255, d.limits.maxTagLength)
         assertEquals(false, d.features.tags)
         assertEquals(false, d.description.html)
+        assertEquals(emptyList<String>(), d.description.tags)
         assertEquals(null, d.site.favicon)
     }
 }

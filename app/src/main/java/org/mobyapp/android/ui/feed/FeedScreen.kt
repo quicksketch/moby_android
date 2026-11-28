@@ -58,15 +58,16 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import org.mobyapp.android.data.DescriptionInfo
 import org.mobyapp.android.data.Media
 import org.mobyapp.android.data.Post
+import org.mobyapp.android.ui.FormattedText
 import org.mobyapp.android.ui.MobyTopBar
 import org.mobyapp.android.ui.POST_DELETED
 import org.mobyapp.android.ui.POST_EDITED
 import org.mobyapp.android.ui.POST_SAVED
 import org.mobyapp.android.ui.appViewModel
 import org.mobyapp.android.ui.theme.MobyFloatingButton
-import org.mobyapp.android.util.HtmlText
 import org.mobyapp.android.util.IsoDates
 
 private const val NO_POST = -1L
@@ -184,7 +185,7 @@ fun FeedScreen(
                     }
                 }
                 items(vm.posts, key = { it.id }) { post ->
-                    PostCard(post, vm.descriptionsAreHtml, vm.postOrder, onClick = { onOpenPost(post.id) })
+                    PostCard(post, vm.descriptionInfo, vm.postOrder, onClick = { onOpenPost(post.id) })
                 }
                 if (vm.hasMore) {
                     item {
@@ -203,7 +204,7 @@ fun FeedScreen(
  * are shown in [order], the order the site shows them in.
  */
 @Composable
-private fun PostCard(post: Post, descriptionIsHtml: Boolean, order: List<String>, onClick: () -> Unit) {
+private fun PostCard(post: Post, descriptionInfo: DescriptionInfo, order: List<String>, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth().testTag("post_${post.id}")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             order.forEach { part ->
@@ -221,7 +222,10 @@ private fun PostCard(post: Post, descriptionIsHtml: Boolean, order: List<String>
                         }
                     }
                     "description" -> {
-                        val text = HtmlText.toPlainText(post.description, descriptionIsHtml)
+                        val linkColor = MaterialTheme.colorScheme.primary
+                        val text = remember(post.description, descriptionInfo, linkColor) {
+                            FormattedText.annotated(post.description, descriptionInfo, linkColor)
+                        }
                         if (text.isNotEmpty()) {
                             Text(text, style = MaterialTheme.typography.bodyLarge, maxLines = 8, overflow = TextOverflow.Ellipsis)
                         }

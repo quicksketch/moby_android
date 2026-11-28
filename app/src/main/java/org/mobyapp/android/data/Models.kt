@@ -1,5 +1,6 @@
 package org.mobyapp.android.data
 
+import org.mobyapp.android.util.RichTags
 
 // Models for the Moby REST API (v1). See moby_docs/API.md for the meaning
 // of each property. They are read from JSON
@@ -14,7 +15,8 @@ data class Discovery(
     val site: Site,
     /** Problems with the site's setup, for the user to pass on to an administrator. */
     val setupIssues: List<SetupIssue> = emptyList(),
-    val auth: AuthInfo? = null,
+    /** Every mechanism the app can log in with, the default first. */
+    val authMechanisms: List<AuthInfo> = emptyList(),
     val limits: Limits,
     val media: MediaTypes,
     val description: DescriptionInfo = DescriptionInfo(),
@@ -51,6 +53,10 @@ data class AuthInfo(
     val label: String,
     val fields: List<AuthField>,
     val passwordResetUrl: String? = null,
+    /** A sentence to show above the fields. */
+    val description: String? = null,
+    /** The submit button's label. The app uses "Log in" without one. */
+    val submitLabel: String? = null,
 )
 
 data class AuthField(
@@ -58,6 +64,8 @@ data class AuthField(
     val label: String,
     val type: String,
     val required: Boolean = true,
+    /** Example text shown in the empty field, such as "name@example.com". */
+    val placeholder: String? = null,
 )
 
 data class Limits(
@@ -89,7 +97,15 @@ data class VideoTypeInfo(
 /** Thumbnails may be at most [ImageTypeInfo.maxSize] bytes. */
 data class ThumbnailInfo(val extensions: List<String>)
 
-data class DescriptionInfo(val format: String? = null, val html: Boolean = false)
+data class DescriptionInfo(
+    val format: String? = null,
+    val html: Boolean = false,
+    /** The formatting tags the site keeps. See SPECIFICATIONS.md section 8. */
+    val tags: List<String> = emptyList(),
+) {
+    /** The site's formatting, none unless descriptions are HTML. */
+    val richTags: RichTags get() = RichTags(if (html) tags else emptyList())
+}
 
 /**
  * How posts show their parts on the site.
@@ -120,6 +136,29 @@ data class TokenResponse(
     val token: String,
     val tokenType: String,
     val user: User,
+)
+
+/** The answer to a login request: a token, or a login waiting for the user. */
+sealed interface LoginResult {
+    data class LoggedIn(val response: TokenResponse) : LoginResult
+    data class Step(val step: LoginStep) : LoginResult
+}
+
+/**
+ * The next form of a login with more than one step, such as for an emailed
+ * code. The app sends its fields with [requestId]. See "Login steps" in
+ * API.md.
+ *
+ * @property requestId A secret: anyone with it can continue the login. Kept
+ *   only in memory.
+ * @property title The step's heading, or null for the usual one.
+ */
+data class LoginStep(
+    val requestId: String,
+    val title: String? = null,
+    val description: String? = null,
+    val submitLabel: String,
+    val fields: List<AuthField>,
 )
 
 data class User(
@@ -184,7 +223,10 @@ data class PostList(
     val total: Int,
 )
 
-data class ErrorDetail(val code: String, val message: String, val field: String? = null)
+/**
+ * @property restart Whether a login must start again from its first form.
+ */
+data class ErrorDetail(val code: String, val message: String, val field: String? = null, val restart: Boolean = false)
 
 /** An error response from the API. */
 class ApiException(
@@ -192,4 +234,6 @@ class ApiException(
     val code: String,
     override val message: String,
     val field: String? = null,
+    /** During a login, whether it must start again from the first form. */
+    val restart: Boolean = false,
 ) : Exception(message)

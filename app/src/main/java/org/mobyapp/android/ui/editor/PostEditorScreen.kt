@@ -89,7 +89,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
@@ -118,6 +120,8 @@ import org.mobyapp.android.util.IsoDates
 fun PostEditorScreen(postId: Long?, backLabel: String, sharedMedia: List<Uri> = emptyList(), onBack: () -> Unit, onSaved: () -> Unit) {
     val vm = appViewModel(key = "editor_${postId ?: "new"}") { PostEditorViewModel(it, postId, sharedMedia) }
     val snackbar = remember { SnackbarHostState() }
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
     var altItem by remember { mutableStateOf<EditorMedia?>(null) }
     var viewItem by remember { mutableStateOf<EditorMedia?>(null) }
     var pickingDate by remember { mutableStateOf(false) }
@@ -154,7 +158,13 @@ fun PostEditorScreen(postId: Long?, backLabel: String, sharedMedia: List<Uri> = 
                 onBack = onBack,
                 actions = {
                     MobyButton(
-                        onClick = { vm.save(onSaved) },
+                        onClick = {
+                            // Closes the keyboard, so it isn't left open on the
+                            // screen the editor returns to.
+                            focusManager.clearFocus()
+                            keyboard?.hide()
+                            vm.save(onSaved)
+                        },
                         enabled = vm.canSave,
                         modifier = Modifier.padding(end = 8.dp).testTag("save"),
                     ) {
@@ -200,19 +210,29 @@ fun PostEditorScreen(postId: Long?, backLabel: String, sharedMedia: List<Uri> = 
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            OutlinedTextField(
-                value = vm.description,
-                onValueChange = { vm.description = it },
-                label = { Text("What's happening?") },
-                minLines = 4,
-                isError = vm.errorField == "description",
-                supportingText = if (vm.descriptionIsRaw) {
-                    { Text("This post has formatting, so it is edited as HTML.") }
-                } else {
-                    null
-                },
-                modifier = Modifier.fillMaxWidth().testTag("description"),
-            )
+            if (vm.descriptionMode == PostEditorViewModel.DescriptionMode.FORMATTED) {
+                FormattedTextField(
+                    initial = vm.richDescription,
+                    tags = discovery.description.richTags,
+                    isError = vm.errorField == "description",
+                    onChange = vm::updateRichDescription,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                OutlinedTextField(
+                    value = vm.description,
+                    onValueChange = { vm.description = it },
+                    label = { Text("What's happening?") },
+                    minLines = 4,
+                    isError = vm.errorField == "description",
+                    supportingText = if (vm.descriptionIsRaw) {
+                        { Text("This post has formatting, so it is edited as HTML.") }
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.fillMaxWidth().testTag("description"),
+                )
+            }
 
             MediaSection(vm, onEditAlt = { altItem = it }, onView = { viewItem = it })
 

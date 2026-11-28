@@ -6,6 +6,7 @@ import okhttp3.mockwebserver.MockWebServer
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -40,49 +41,114 @@ class MobyApiTest {
         // that unknown properties are ignored.
         respond(
             200,
-            """{"api_version":1,"site":{"name":"Example","url":"https:\/\/example.com\/"},
-            "auth":{"mechanism":"password","label":"Username and password","fields":[
+            """{"api_version":2,"site":{"name":"Example","url":"https:\/\/example.com\/"},
+            "auth_mechanisms":[{"mechanism":"password","label":"Username and password","fields":[
               {"name":"username","label":"Username","type":"text","required":true},
               {"name":"password","label":"Password","type":"password","required":true}],
-              "password_reset_url":"https:\/\/example.com\/user\/password"},
+              "password_reset_url":"https:\/\/example.com\/user\/password"}],
             "limits":{"max_upload_size":104857600,"max_media_per_post":3,"max_description_length":null,"max_alt_length":2000},
             "media":{"image":{"extensions":["jpg","png"],"max_size":104857600},"video":{"extensions":["mp4"],"max_size":52428800}},
-            "description":{"format":"filtered_html","html":true},
+            "description":{"format":"filtered_html","html":true,"tags":["p","strong","a"]},
             "features":{"location":true,"drafts":true},"future_property":1}""",
         )
         val discovery = api.discover()
-        assertEquals("/api/moby/meta?api=1", server.takeRequest().path)
-        assertEquals(listOf("username", "password"), discovery.auth?.fields?.map { it.name })
+        assertEquals("/api/moby/meta?api=2", server.takeRequest().path)
+        assertEquals(listOf("username", "password"), discovery.authMechanisms.single().fields.map { it.name })
+        assertNull(discovery.authMechanisms.single().fields[0].placeholder)
         assertEquals(52428800L, discovery.media.video.maxSize)
         assertNull(discovery.limits.maxDescriptionLength)
         assertTrue(discovery.description.html)
+        assertEquals(listOf("p", "strong", "a"), discovery.description.tags)
     }
 
     @Test
     fun logsInWithoutATokenAndSendsTheDeviceName() = runTest {
         respond(201, """{"token":"moby_abc","token_type":"Bearer","user":{"id":1,"name":"nate","url":"u","permissions":{"create":true,"publish":true}}}""")
-        val response = api.login(mapOf("username" to "nate", "password" to "secret"), "Pixel 9")
+        val response = api.login("password", mapOf("username" to "nate", "password" to "secret"), "Pixel 9")
         val request = server.takeRequest()
         assertEquals("POST", request.method)
         assertNull(request.getHeader("Authorization"))
         assertJsonEquals(
-            JSONObject("""{"username":"nate","password":"secret","device_name":"Pixel 9"}"""),
+            JSONObject("""{"mechanism":"password","username":"nate","password":"secret","device_name":"Pixel 9"}"""),
             JSONObject(request.body.readUtf8()),
         )
-        assertEquals("moby_abc", response.token)
+        assertEquals("moby_abc", (response as LoginResult.LoggedIn).response.token)
+    }
+
+    @Test
+    fun parsesAuthMechanisms() = runTest {
+        respond(
+            200,
+            """{"api_version":2,"site":{"name":"Example","url":"https:\/\/example.com\/"},
+            "auth_mechanisms":[
+              {"mechanism":"password","label":"Username and password","description":null,"submit_label":"Log in","fields":[]},
+              {"mechanism":"email","label":"Email a login link","description":"We'll email you a link.","submit_label":"Email me a login link",
+               "fields":[{"name":"email","label":"Email address","type":"email","required":true,"placeholder":"name@example.com"}]}],
+            "limits":{"max_upload_size":1,"max_media_per_post":1},
+            "media":{"image":{"extensions":[],"max_size":1},"video":{"extensions":[],"max_size":1}}}""",
+        )
+        val discovery = api.discover()
+        assertEquals(listOf("password", "email"), discovery.authMechanisms.map { it.mechanism })
+        val email = discovery.authMechanisms[1]
+        assertEquals("Email me a login link", email.submitLabel)
+        assertEquals("We'll email you a link.", email.description)
+        assertEquals("name@example.com", email.fields.single().placeholder)
+        assertNull(discovery.authMechanisms[0].description)
+    }
+
+    @Test
+    fun startsAndContinuesALoginWithSteps() = runTest {
+        respond(
+            202,
+            """{"step":{"request_id":"req_1","title":"Check your email","description":"Enter the code.","submit_label":"Log in",
+            "fields":[{"name":"code","label":"6-digit code","type":"number","required":true,"placeholder":null}],"expires_in":900}}""",
+        )
+        val started = api.login("email", mapOf("email" to "nate@example.com"), "Pixel 9")
+        assertJsonEquals(
+            JSONObject("""{"mechanism":"email","email":"nate@example.com","device_name":"Pixel 9"}"""),
+            JSONObject(server.takeRequest().body.readUtf8()),
+        )
+        val step = (started as LoginResult.Step).step
+        assertEquals(
+            LoginStep("req_1", "Check your email", "Enter the code.", "Log in", listOf(AuthField("code", "6-digit code", "number", true))),
+            step,
+        )
+
+        respond(201, """{"token":"moby_abc","token_type":"Bearer","user":{"id":1,"name":"nate","url":"u","permissions":{"create":true,"publish":true}}}""")
+        val finished = api.login("email", mapOf("code" to "012345"), "Pixel 9", step.requestId)
+        val request = server.takeRequest()
+        assertEquals("/api/moby/auth/token?api=2", request.path)
+        assertJsonEquals(
+            JSONObject("""{"mechanism":"email","request_id":"req_1","code":"012345","device_name":"Pixel 9"}"""),
+            JSONObject(request.body.readUtf8()),
+        )
+        assertEquals("moby_abc", (finished as LoginResult.LoggedIn).response.token)
+    }
+
+    @Test
+    fun restartingErrorsSayToStartOver() = runTest {
+        respond(401, """{"error":{"code":"too_many_attempts","message":"Invalid email code. Please log in again.","field":"code","restart":true}}""")
+        try {
+            api.login("email", mapOf("code" to "000000"), "Pixel", "req_1")
+            fail("Expected an ApiException")
+        } catch (e: ApiException) {
+            assertTrue(e.restart)
+            assertEquals("Invalid email code. Please log in again.", e.message)
+        }
     }
 
     @Test
     fun errorsBecomeApiExceptions() = runTest {
         respond(401, """{"error":{"code":"invalid_credentials","message":"Sorry, incorrect password.","field":"password"}}""")
         try {
-            api.login(mapOf("username" to "nate", "password" to "wrong"), "Pixel")
+            api.login("password", mapOf("username" to "nate", "password" to "wrong"), "Pixel")
             fail("Expected an ApiException")
         } catch (e: ApiException) {
             assertEquals(401, e.status)
             assertEquals("invalid_credentials", e.code)
             assertEquals("password", e.field)
             assertEquals("Sorry, incorrect password.", e.message)
+            assertFalse(e.restart)
         }
     }
 
@@ -110,7 +176,7 @@ class MobyApiTest {
         ) { sent, _ -> progress += sent }
 
         val request = server.takeRequest()
-        assertEquals("/api/moby/media?api=1", request.path)
+        assertEquals("/api/moby/media?api=2", request.path)
         assertEquals("Bearer moby_token", request.getHeader("Authorization"))
         assertTrue(request.getHeader("Content-Type")!!.startsWith("multipart/form-data"))
         val body = request.body.readByteArray()
@@ -197,7 +263,7 @@ class MobyApiTest {
         api.deletePost(12)
         val request = server.takeRequest()
         assertEquals("DELETE", request.method)
-        assertEquals("/api/moby/posts/12?api=1", request.path)
+        assertEquals("/api/moby/posts/12?api=2", request.path)
     }
 
     @Test
@@ -215,7 +281,7 @@ class MobyApiTest {
         api.deleteMedia(7)
         val request = server.takeRequest()
         assertEquals("DELETE", request.method)
-        assertEquals("/api/moby/media/7?api=1", request.path)
+        assertEquals("/api/moby/media/7?api=2", request.path)
     }
 
     @Test
@@ -225,7 +291,7 @@ class MobyApiTest {
         respond(200, """{"posts":[$post],"page":1,"limit":20,"total":21}""")
         respond(200, post)
         val list = api.listPosts(page = 1)
-        assertEquals("/api/moby/posts?page=1&limit=20&api=1", server.takeRequest().path)
+        assertEquals("/api/moby/posts?page=1&limit=20&api=2", server.takeRequest().path)
         assertEquals(1, list.posts.size)
         assertNull(list.posts[0].location)
 
@@ -233,7 +299,7 @@ class MobyApiTest {
         val request = server.takeRequest()
         // HttpURLConnection can't send PATCH; the site treats POST the same.
         assertEquals("POST", request.method)
-        assertEquals("/api/moby/posts/3?api=1", request.path)
+        assertEquals("/api/moby/posts/3?api=2", request.path)
         assertEquals("Hi", JSONObject(request.body.readUtf8()).getString("description"))
     }
 
@@ -241,7 +307,7 @@ class MobyApiTest {
     fun suggestsTags() = runTest {
         respond(200, """{"tags":["backdrop","BADCamp"]}""")
         assertEquals(listOf("backdrop", "BADCamp"), api.suggestTags("ba ck#"))
-        assertEquals("/api/moby/tags?search=ba+ck%23&limit=8&api=1", server.takeRequest().path)
+        assertEquals("/api/moby/tags?search=ba+ck%23&limit=8&api=2", server.takeRequest().path)
     }
 
     @Test

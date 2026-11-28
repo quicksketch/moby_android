@@ -10,8 +10,13 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import org.mobyapp.android.MobyApplication
 import org.mobyapp.android.data.ApiException
+import org.mobyapp.android.data.AuthField
+import org.mobyapp.android.data.AuthInfo
 import org.mobyapp.android.data.Discovery
+import org.mobyapp.android.data.LoginResult
+import org.mobyapp.android.data.LoginStep
 import org.mobyapp.android.data.SetupIssue
+import org.mobyapp.android.data.TokenResponse
 import org.mobyapp.android.data.compatibility
 import org.mobyapp.android.ui.userMessage
 
@@ -39,8 +44,27 @@ class LoginViewModel(private val app: MobyApplication, siteId: String?) : ViewMo
     var setupIssues by mutableStateOf<List<SetupIssue>>(emptyList())
         private set
 
+    /** The mechanism whose form is shown. The site's default at first. */
+    var mechanism by mutableStateOf<AuthInfo?>(null)
+        private set
+
+    /** The site's other mechanisms, listed under "Log in a different way". */
+    val otherMechanisms: List<AuthInfo>
+        get() = discovery?.authMechanisms.orEmpty().filter { it.mechanism != mechanism?.mechanism }
+
     /** Credential values, keyed by the auth field names from discovery. */
     val credentials = mutableStateMapOf<String, String>()
+
+    /**
+     * A later step of the login, such as for an emailed code, or null on the
+     * mechanism's own form.
+     */
+    var step by mutableStateOf<LoginStep?>(null)
+        private set
+
+    /** The fields of the form shown: the step's, or the mechanism's. */
+    val fields: List<AuthField>
+        get() = step?.fields ?: mechanism?.fields.orEmpty()
 
     var loading by mutableStateOf(false)
         private set
@@ -73,46 +97,90 @@ class LoginViewModel(private val app: MobyApplication, siteId: String?) : ViewMo
                 error = it
                 return@run
             }
-            val blocked = result.auth == null || result.setupIssues.any { it.isError }
+            val blocked = result.authMechanisms.isEmpty() || result.setupIssues.any { it.isError }
             when {
-                !blocked -> discovery = result
+                !blocked -> {
+                    discovery = result
+                    mechanism = result.authMechanisms.first()
+                }
                 // Sites with older versions of the module don't list issues.
                 result.setupIssues.isNotEmpty() -> Unit
-                result.auth == null -> error = "This site does not allow logging in from the app."
+                result.authMechanisms.isEmpty() -> error = "This site does not allow logging in from the app."
                 else -> error = "This site has not finished setting up posting from the app."
             }
         }
     }
 
     fun changeSite() {
+        step = null
         discovery = null
+        mechanism = null
         setupIssues = emptyList()
         credentials.clear()
         error = null
         errorField = null
     }
 
+    /** Shows another mechanism's form, from "Log in a different way". */
+    fun selectMechanism(selected: AuthInfo) {
+        mechanism = selected
+        step = null
+        error = null
+        errorField = null
+    }
+
     fun logIn(onLoggedIn: () -> Unit) {
-        val discovery = discovery ?: return
-        val auth = discovery.auth ?: return
-        val missing = auth.fields.firstOrNull { it.required && credentials[it.name].isNullOrBlank() }
+        val auth = mechanism ?: return
+        val shown = fields
+        val missing = shown.firstOrNull { it.required && credentials[it.name].isNullOrBlank() }
         if (missing != null) {
-            error = "Enter your ${missing.label.lowercase()}."
+            error = missingMessage(missing)
             errorField = missing.name
             return
         }
-        run {
-            val values = auth.fields.associate { it.name to (credentials[it.name] ?: "") }
-            val response = app.api(siteUrl).login(values, deviceName())
-            val id = app.sites.saveLogin(siteUrl, discovery.site, response.token, response.user.name, discovery.api?.version ?: 1)
-            app.openSite(id)
-            app.discovery = discovery
-            app.user = response.user
-            onLoggedIn()
+        val current = step
+        run(shown) {
+            val values = shown.associate { it.name to (credentials[it.name]?.trim() ?: "") }
+            when (val result = app.api(siteUrl).login(auth.mechanism, values, deviceName(), current?.requestId)) {
+                is LoginResult.LoggedIn -> finish(result.response, onLoggedIn)
+                is LoginResult.Step -> showStep(result.step)
+            }
         }
     }
 
-    private fun run(block: suspend () -> Unit) {
+    /** Leaves the login's later steps, and shows the mechanism's form again. */
+    fun startOver() {
+        val current = step ?: return
+        current.fields.forEach { credentials.remove(it.name) }
+        // Passwords are typed again, as for any failed login.
+        mechanism?.fields?.filter { it.type == "password" }?.forEach { credentials.remove(it.name) }
+        step = null
+        error = null
+        errorField = null
+    }
+
+    private fun showStep(next: LoginStep) {
+        // A field of a new step starts empty, even if an earlier form had one
+        // with the same name.
+        next.fields.forEach { credentials.remove(it.name) }
+        step = next
+    }
+
+    private fun finish(response: TokenResponse, onLoggedIn: () -> Unit) {
+        val discovery = discovery ?: return
+        val id = app.sites.saveLogin(siteUrl, discovery.site, response.token, response.user.name, discovery.api?.version ?: 1)
+        app.openSite(id)
+        app.discovery = discovery
+        app.user = response.user
+        onLoggedIn()
+    }
+
+    /**
+     * Runs a request, showing its error, if any.
+     *
+     * @param shown For a login form, its fields, so an error can mark one.
+     */
+    private fun run(shown: List<AuthField> = emptyList(), block: suspend () -> Unit) {
         error = null
         errorField = null
         loading = true
@@ -120,8 +188,16 @@ class LoginViewModel(private val app: MobyApplication, siteId: String?) : ViewMo
             try {
                 block()
             } catch (e: Exception) {
-                error = e.userMessage()
-                errorField = (e as? ApiException)?.field
+                val api = e as? ApiException
+                if (api?.restart == true) {
+                    // The login can't go on, such as after too many wrong
+                    // codes: back to the first form, with the site's message.
+                    startOver()
+                    error = e.userMessage()
+                } else {
+                    error = e.userMessage()
+                    errorField = api?.field?.takeIf { field -> shown.isEmpty() || shown.any { it.name == field } }
+                }
             } finally {
                 loading = false
             }
@@ -135,6 +211,11 @@ class LoginViewModel(private val app: MobyApplication, siteId: String?) : ViewMo
     }
 
     companion object {
+        /** The message for a required field left empty. */
+        fun missingMessage(field: AuthField): String =
+            // Labels can be questions, such as for security questions.
+            if (field.label.endsWith("?")) "Answer \u201c${field.label}\u201d" else "Enter your ${field.label.lowercase()}."
+
         /** Adds "https://" if no scheme was entered, and removes any trailing slash. */
         fun normalizeUrl(input: String): String? {
             val trimmed = input.trim().trimEnd('/')

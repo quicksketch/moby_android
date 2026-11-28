@@ -50,11 +50,19 @@ class MobyApi(
 
     suspend fun discover(): Discovery = get("/meta", JsonModels::discovery)
 
-    suspend fun login(credentials: Map<String, String>, deviceName: String): TokenResponse {
-        val body = JSONObject()
+    /**
+     * Logs in with a mechanism's credentials, or sends a later step of a
+     * login. Some mechanisms answer with another step instead of a token.
+     *
+     * @param mechanism The mechanism's name, from [Discovery.authMechanisms].
+     * @param requestId For a later step, its [LoginStep.requestId].
+     */
+    suspend fun login(mechanism: String, credentials: Map<String, String>, deviceName: String, requestId: String? = null): LoginResult {
+        val body = JSONObject().put("mechanism", mechanism)
+        requestId?.let { body.put("request_id", it) }
         credentials.forEach { (name, value) -> body.put(name, value) }
         body.put("device_name", deviceName)
-        return send("POST", "/auth/token", body, JsonModels::tokenResponse)
+        return send("POST", "/auth/token", body, JsonModels::loginResult)
     }
 
     suspend fun logout() {
@@ -168,7 +176,7 @@ class MobyApi(
     private fun parseError(status: Int, body: String): ApiException {
         val detail = JsonModels.errorDetail(body)
             ?: ErrorDetail("http_$status", "The site returned an unexpected error ($status).")
-        return ApiException(status, detail.code, detail.message, detail.field)
+        return ApiException(status, detail.code, detail.message, detail.field, detail.restart)
     }
 }
 

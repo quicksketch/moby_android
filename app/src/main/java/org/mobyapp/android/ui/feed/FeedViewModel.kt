@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import org.mobyapp.android.MobyApplication
 import org.mobyapp.android.data.ApiVersion
 import org.mobyapp.android.data.Compatibility
+import org.mobyapp.android.data.DescriptionInfo
 import org.mobyapp.android.data.DisplayInfo
 import org.mobyapp.android.data.Post
 import org.mobyapp.android.data.compatibility
@@ -21,8 +22,8 @@ class FeedViewModel(private val app: MobyApplication) : ViewModel() {
     val posts = mutableStateListOf<Post>()
     /** The site's title, which updates when the user changes it. */
     val siteName: String? get() = app.currentSite?.displayName
-    /** Whether descriptions are HTML, from the site's discovery document. */
-    var descriptionsAreHtml by mutableStateOf(false)
+    /** How the site stores descriptions, and the formatting it keeps, from discovery. */
+    var descriptionInfo by mutableStateOf(DescriptionInfo())
         private set
 
     /**
@@ -86,7 +87,7 @@ class FeedViewModel(private val app: MobyApplication) : ViewModel() {
         viewModelScope.launch {
             try {
                 val discovery = app.requireDiscovery()
-                descriptionsAreHtml = discovery.description.html
+                descriptionInfo = discovery.description
                 postOrder = discovery.display.parts
                 showUpdateNotice(discovery.compatibility)
                 val result = app.api().listPosts(page = page, limit = PAGE_SIZE)

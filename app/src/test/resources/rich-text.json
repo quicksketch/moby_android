@@ -1,0 +1,589 @@
+{
+  "description": "Shared cases for formatted descriptions. See SPECIFICATIONS.md section 8. 'editable' reads html for the formatted editor with the site's tags, then writes it back with them; a null result means it is edited as raw HTML. 'display' reads html for display, then writes it with the site's tags.",
+  "editable": [
+    {
+      "name": "Plain text",
+      "html": "Hello world",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p>Hello world</p>"
+    },
+    {
+      "name": "Entities are decoded and encoded again",
+      "html": "Tom &amp; Jerry &lt;3",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p>Tom &amp; Jerry &lt;3</p>"
+    },
+    {
+      "name": "Newlines outside p end paragraphs",
+      "html": "One\nTwo\n\nThree",
+      "tags": [
+        "strong",
+        "em",
+        "a"
+      ],
+      "result": "One\n\nTwo\n\nThree"
+    },
+    {
+      "name": "Paragraphs",
+      "html": "<p>One</p>\n<p>Two</p>",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p>One</p>\n<p>Two</p>"
+    },
+    {
+      "name": "Whitespace inside p collapses",
+      "html": "<p>  a\n  b  </p>",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p>a b</p>"
+    },
+    {
+      "name": "br ends paragraphs",
+      "html": "a<br>b<br />c",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "em",
+        "del",
+        "a"
+      ],
+      "result": "<p>a</p>\n<p>b</p>\n<p>c</p>"
+    },
+    {
+      "name": "Nested styles",
+      "html": "<strong>bold <em>both</em></strong><em> italic</em>",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p><strong>bold <em>both</em></strong><em> italic</em></p>"
+    },
+    {
+      "name": "Preferred tags replace alternatives",
+      "html": "<b>x</b> <i>y</i>",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p><strong>x</strong> <em>y</em></p>"
+    },
+    {
+      "name": "Alternative tags when the site keeps only those",
+      "html": "<strong>x</strong> <em>y</em>",
+      "tags": [
+        "b",
+        "i"
+      ],
+      "result": "<b>x</b> <i>y</i>"
+    },
+    {
+      "name": "Links keep their href, encoded",
+      "html": "<a href=\"https://example.com/?a=1&amp;b=2\">site</a> here",
+      "tags": [
+        "strong",
+        "em",
+        "a"
+      ],
+      "result": "<a href=\"https://example.com/?a=1&amp;b=2\">site</a> here"
+    },
+    {
+      "name": "Links are outermost",
+      "html": "<strong><a href=\"https://x.org\">x</a></strong>",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p><a href=\"https://x.org\"><strong>x</strong></a></p>"
+    },
+    {
+      "name": "Single-quoted href",
+      "html": "<a href='https://x.org'>x</a>",
+      "tags": [
+        "a"
+      ],
+      "result": "<a href=\"https://x.org\">x</a>"
+    },
+    {
+      "name": "Strikethrough alternatives",
+      "html": "<del>a</del> <strike>b</strike>",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "em",
+        "del",
+        "a"
+      ],
+      "result": "<p><del>a</del> <del>b</del></p>"
+    },
+    {
+      "name": "Empty paragraphs are dropped",
+      "html": "<p></p><p> </p><p>a</p>",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p>a</p>"
+    },
+    {
+      "name": "Non-breaking spaces become spaces",
+      "html": "a&nbsp;b",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p>a b</p>"
+    },
+    {
+      "name": "Quotes are encoded",
+      "html": "He said \"hi\"",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p>He said &quot;hi&quot;</p>"
+    },
+    {
+      "name": "Unclosed tags are closed",
+      "html": "<strong>a",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p><strong>a</strong></p>"
+    },
+    {
+      "name": "Stray closing tags are ignored",
+      "html": "a</em>b",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p>ab</p>"
+    },
+    {
+      "name": "Tag names ignore case",
+      "html": "<STRONG>a</STRONG>",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p><strong>a</strong></p>"
+    },
+    {
+      "name": "Paragraphs joined with br",
+      "html": "<p>a</p><p>b</p>",
+      "tags": [
+        "br",
+        "strong"
+      ],
+      "result": "a<br>b"
+    },
+    {
+      "name": "Empty",
+      "html": "",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": ""
+    },
+    {
+      "name": "A < or > that isn't a tag is text",
+      "html": "1 < 2 & 3 > 2",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p>1 &lt; 2 &amp; 3 &gt; 2</p>"
+    },
+    {
+      "name": "Neighbouring text with the same style is joined",
+      "html": "<em>a</em><em>b</em>",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p><em>ab</em></p>"
+    },
+    {
+      "name": "One space where styles meet",
+      "html": "<strong>a </strong> b",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p><strong>a </strong>b</p>"
+    },
+    {
+      "name": "Raw: other tags",
+      "html": "<p>a</p><ul><li>b</li></ul>",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": null
+    },
+    {
+      "name": "Raw: attributes",
+      "html": "<p class=\"x\">a</p>",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": null
+    },
+    {
+      "name": "Raw: attributes on a other than href",
+      "html": "<a href=\"https://x.org\" title=\"t\">a</a>",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": null
+    },
+    {
+      "name": "Raw: a without href",
+      "html": "<a name=\"top\">a</a>",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": null
+    },
+    {
+      "name": "Raw: comments",
+      "html": "a<!-- note -->b",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": null
+    },
+    {
+      "name": "Raw: a style the site doesn't keep",
+      "html": "<u>a</u>",
+      "tags": [
+        "strong",
+        "em",
+        "a"
+      ],
+      "result": null
+    },
+    {
+      "name": "Raw: links the site doesn't keep",
+      "html": "<a href=\"https://x.org\">a</a>",
+      "tags": [
+        "strong"
+      ],
+      "result": null
+    }
+  ],
+  "display": [
+    {
+      "name": "Lists become paragraphs",
+      "html": "<p>a</p><ul><li>one</li><li>two</li></ul>",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p>a</p>\n<p>one</p>\n<p>two</p>"
+    },
+    {
+      "name": "Other tags are removed, keeping their text",
+      "html": "<h3>Title</h3><div>x <span class='y'>y</span></div>",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p>Title</p>\n<p>x y</p>"
+    },
+    {
+      "name": "Styles the site doesn't keep are removed",
+      "html": "<u>a</u> <strong>b</strong>",
+      "tags": [
+        "strong",
+        "em",
+        "a"
+      ],
+      "result": "a <strong>b</strong>"
+    },
+    {
+      "name": "Links the site doesn't keep are removed",
+      "html": "<a href=\"https://x.org\">a</a>",
+      "tags": [
+        "strong"
+      ],
+      "result": "a"
+    },
+    {
+      "name": "Comments are removed",
+      "html": "a<!-- c -->b",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p>ab</p>"
+    },
+    {
+      "name": "Images are removed",
+      "html": "a<img src=\"x.jpg\">b",
+      "tags": [
+        "p",
+        "br",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "s",
+        "del",
+        "strike",
+        "a"
+      ],
+      "result": "<p>ab</p>"
+    },
+    {
+      "name": "No formatting tags",
+      "html": "<strong>a</strong>\n<p>b</p>",
+      "tags": [],
+      "result": "a\n\nb"
+    }
+  ]
+}

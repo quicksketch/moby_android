@@ -12,13 +12,13 @@ package org.mobyapp.android.data
 object ApiVersion {
 
     /** The version the app is built for, sent as ?api= on every request. */
-    const val CURRENT = 1
+    const val CURRENT = 2
 
     /** The oldest site version the app can work with at all. */
-    const val MIN_SITE = 1
+    const val MIN_SITE = 2
 
     /**
-     * A change to the API after version 1.
+     * A change to the API after [MIN_SITE].
      *
      * @property label What users gain from it, such as "Tags", or null if
      *   they wouldn't notice it.
@@ -27,7 +27,7 @@ object ApiVersion {
      */
     data class Change(val version: Int, val label: String?, val fallback: String)
 
-    /** The changes the app uses, oldest first. Version 1 is the baseline. */
+    /** The changes the app uses, oldest first. [MIN_SITE] is the baseline. */
     val CHANGES: List<Change> = emptyList()
 }
 

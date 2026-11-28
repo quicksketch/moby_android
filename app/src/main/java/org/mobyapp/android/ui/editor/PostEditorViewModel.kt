@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.mobyapp.android.MobyApplication
 import org.mobyapp.android.data.ApiException
+import org.mobyapp.android.data.DescriptionInfo
 import org.mobyapp.android.data.Discovery
 import org.mobyapp.android.data.Hashtags
 import org.mobyapp.android.data.Location
@@ -24,6 +25,8 @@ import org.mobyapp.android.data.ThumbnailImage
 import org.mobyapp.android.ui.userMessage
 import org.mobyapp.android.util.HtmlText
 import org.mobyapp.android.util.IsoDates
+import org.mobyapp.android.util.RichDocument
+import org.mobyapp.android.util.RichText
 import java.time.ZonedDateTime
 import java.util.UUID
 
@@ -83,10 +86,24 @@ class PostEditorViewModel(
     var errorField by mutableStateOf<String?>(null)
         private set
 
+    /** The description's text, without formatting. Hashtags are found in it. */
     var description by mutableStateOf("")
-    /** Whether the description contains markup and is edited as HTML. */
-    var descriptionIsRaw by mutableStateOf(false)
+
+    /** How the description is edited. See SPECIFICATIONS.md section 8. */
+    enum class DescriptionMode { PLAIN, FORMATTED, RAW }
+    var descriptionMode by mutableStateOf(DescriptionMode.PLAIN)
         private set
+    /** The description with its formatting, in formatted mode. */
+    var richDescription by mutableStateOf(RichDocument())
+        private set
+    /** Whether the description contains markup the editor can't show, so it is edited as HTML. */
+    val descriptionIsRaw: Boolean get() = descriptionMode == DescriptionMode.RAW
+
+    /** Called as the formatted description changes. */
+    fun updateRichDescription(document: RichDocument) {
+        richDescription = document
+        description = document.plainText
+    }
     var date by mutableStateOf(ZonedDateTime.now())
     var locationName by mutableStateOf("")
     var latitude by mutableStateOf("")
@@ -159,7 +176,9 @@ class PostEditorViewModel(
         loadError = null
         viewModelScope.launch {
             try {
-                discovery = app.requireDiscovery()
+                val discovery = app.requireDiscovery()
+                this@PostEditorViewModel.discovery = discovery
+                descriptionMode = if (discovery.description.richTags.offersFormatting) DescriptionMode.FORMATTED else DescriptionMode.PLAIN
                 canPublish = app.requireUser().permissions.publish
                 if (postId != null) loadPost(postId)
                 addMedia(pendingMedia.also { pendingMedia = emptyList() })
@@ -173,9 +192,20 @@ class PostEditorViewModel(
 
     private suspend fun loadPost(id: Long) {
         val post = app.api().getPost(id)
-        val editable = HtmlText.toEditable(post.description, discovery?.description?.html == true)
-        description = editable.text
-        descriptionIsRaw = editable.raw
+        val info = discovery?.description ?: DescriptionInfo()
+        if (descriptionMode == DescriptionMode.FORMATTED) {
+            val document = RichText.editable(post.description, info.richTags)
+            if (document != null) {
+                updateRichDescription(document)
+            } else {
+                descriptionMode = DescriptionMode.RAW
+                description = post.description
+            }
+        } else {
+            val editable = HtmlText.toEditable(post.description, info.html)
+            description = editable.text
+            descriptionMode = if (editable.raw) DescriptionMode.RAW else DescriptionMode.PLAIN
+        }
         date = IsoDates.parse(post.date) ?: date
         locationName = post.location?.name ?: ""
         latitude = post.location?.latitude?.toString() ?: ""
@@ -389,7 +419,11 @@ class PostEditorViewModel(
         }
 
         val draft = PostDraft(
-            description = HtmlText.fromEditable(description.trim(), descriptionIsRaw, discovery.description.html),
+            description = if (descriptionMode == DescriptionMode.FORMATTED) {
+                RichText.write(richDescription, discovery.description.richTags)
+            } else {
+                HtmlText.fromEditable(description.trim(), descriptionIsRaw, discovery.description.html)
+            },
             date = IsoDates.format(date),
             location = location.takeIf { it.name != null || it.latitude != null },
             media = media.map { PostMediaItem(requireNotNull(it.media).id, it.alt.trim()) },

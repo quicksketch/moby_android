@@ -1,5 +1,6 @@
 package org.mobyapp.android.ui.login
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +16,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -25,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -32,18 +36,29 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import org.mobyapp.android.data.AuthInfo
+import org.mobyapp.android.data.AuthField
 import org.mobyapp.android.data.SetupIssue
 import org.mobyapp.android.ui.MobyTopBar
 import org.mobyapp.android.ui.appViewModel
@@ -105,46 +120,117 @@ fun LoginScreen(siteId: String?, backLabel: String, onBack: () -> Unit, onLogged
                     ButtonContent("Continue", vm.loading)
                 }
             } else {
-                val auth = requireNotNull(discovery.auth)
-                Text("Log in to ${discovery.site.name}", style = MaterialTheme.typography.titleMedium)
-                if (vm.setupIssues.isNotEmpty()) {
+                val auth = requireNotNull(vm.mechanism)
+                val step = vm.step
+                Text(step?.title ?: "Log in to ${discovery.site.name}", style = MaterialTheme.typography.titleMedium)
+                if (step == null && vm.setupIssues.isNotEmpty()) {
                     SetupIssuesCard("Some features aren't available on this site", vm.setupIssues)
                 }
-                // The login form is built from the site's authentication
-                // mechanism, so other mechanisms work without app changes.
-                auth.fields.forEach { field ->
-                    val isPassword = field.type == "password"
-                    OutlinedTextField(
+                (if (step != null) step.description else auth.description)?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                // The form is built from the site's authentication mechanism,
+                // or the step it answered with, so other mechanisms work
+                // without app changes.
+                val fields = vm.fields
+                fields.forEach { field ->
+                    CredentialField(
+                        field = field,
                         value = vm.credentials[field.name] ?: "",
                         onValueChange = { vm.credentials[field.name] = it },
-                        label = { Text(field.label) },
-                        singleLine = true,
                         isError = vm.errorField == field.name,
-                        visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = when (field.type) {
-                                "password" -> KeyboardType.Password
-                                "email" -> KeyboardType.Email
-                                else -> KeyboardType.Text
-                            },
-                            imeAction = if (field == auth.fields.last()) ImeAction.Done else ImeAction.Next,
-                        ),
-                        modifier = Modifier.fillMaxWidth().testTag("credential_${field.name}"),
+                        isLast = field == fields.last(),
+                        onDone = { vm.logIn(onLoggedIn) },
                     )
                 }
                 ErrorText(vm.error)
-                MobyButton(onClick = { vm.logIn(onLoggedIn) }, enabled = !vm.loading, modifier = Modifier.fillMaxWidth()) {
-                    ButtonContent("Log in", vm.loading)
+                MobyButton(onClick = { vm.logIn(onLoggedIn) }, enabled = !vm.loading, modifier = Modifier.fillMaxWidth().testTag("logIn")) {
+                    ButtonContent(step?.submitLabel ?: auth.submitLabel ?: "Log in", vm.loading)
                 }
-                auth.passwordResetUrl?.let { url ->
-                    TextButton(onClick = { uriHandler.openUri(url) }) { Text("Forgot your password?") }
-                }
-                if (!vm.isSavedSite) {
-                    TextButton(onClick = vm::changeSite, enabled = !vm.loading) { Text("Use a different site") }
+                if (step != null) {
+                    TextButton(onClick = vm::startOver, enabled = !vm.loading, modifier = Modifier.testTag("startOver")) { Text("Start over") }
+                } else {
+                    auth.passwordResetUrl?.let { url ->
+                        TextButton(onClick = { uriHandler.openUri(url) }) { Text("Forgot your password?") }
+                    }
+                    if (vm.otherMechanisms.isNotEmpty()) {
+                        OtherMechanisms(vm.otherMechanisms, enabled = !vm.loading, onSelect = vm::selectMechanism)
+                    }
+                    if (!vm.isSavedSite) {
+                        TextButton(onClick = vm::changeSite, enabled = !vm.loading) { Text("Use a different site") }
+                    }
                 }
             }
         }
     }
+}
+
+/** "Log in a different way": the site's other mechanisms, collapsed at first. */
+@Composable
+private fun OtherMechanisms(mechanisms: List<AuthInfo>, enabled: Boolean, onSelect: (AuthInfo) -> Unit) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        TextButton(
+            onClick = { expanded = !expanded },
+            modifier = Modifier.testTag("otherMechanisms").semantics { stateDescription = if (expanded) "Expanded" else "Collapsed" },
+        ) {
+            Text("Log in a different way")
+            Icon(
+                if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                modifier = Modifier.padding(start = 4.dp),
+            )
+        }
+        AnimatedVisibility(visible = expanded) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+                mechanisms.forEach { other ->
+                    OutlinedButton(
+                        onClick = { expanded = false; onSelect(other) },
+                        enabled = enabled,
+                        modifier = Modifier.fillMaxWidth().testTag("mechanism_${other.mechanism}"),
+                    ) { Text(other.label) }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * One field of a login form, from the site's description of it.
+ *
+ * Number fields take digits only, with a number keyboard.
+ */
+@Composable
+private fun CredentialField(
+    field: AuthField,
+    value: String,
+    onValueChange: (String) -> Unit,
+    isError: Boolean,
+    isLast: Boolean,
+    onDone: () -> Unit,
+) {
+    val isPassword = field.type == "password"
+    val isNumber = field.type == "number"
+    OutlinedTextField(
+        value = value,
+        onValueChange = { onValueChange(if (isNumber) it.filter(Char::isDigit) else it) },
+        label = { Text(field.label) },
+        placeholder = field.placeholder?.let { { Text(it) } },
+        singleLine = true,
+        isError = isError,
+        visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+        keyboardOptions = KeyboardOptions(
+            keyboardType = when (field.type) {
+                "password" -> KeyboardType.Password
+                "email" -> KeyboardType.Email
+                // Digits only, unlike KeyboardType.Number, which can have a
+                // decimal point and minus sign.
+                "number" -> KeyboardType.NumberPassword
+                else -> KeyboardType.Text
+            },
+            imeAction = if (isLast) ImeAction.Done else ImeAction.Next,
+        ),
+        keyboardActions = KeyboardActions(onDone = { onDone() }),
+        modifier = Modifier.fillMaxWidth().testTag("credential_${field.name}"),
+    )
 }
 
 /** Lists setup issues, worded for the user to pass on to an administrator. */
